@@ -39,6 +39,12 @@ app.use((err, req, res, _next) => {
 });
 
 async function start() {
+  console.log(
+    "[boot] MONGODB_URI set:",
+    Boolean(process.env.MONGODB_URI),
+    "PORT:",
+    process.env.PORT || "(using default)"
+  );
   await connectDB();
   const server = app.listen(port, () => {
     console.log(`Server listening on http://localhost:${port}`);
@@ -58,6 +64,9 @@ async function start() {
   });
 }
 
-start();
+start().catch((err) => {
+  console.error("Fatal startup error:", err);
+  process.exit(1);
+});
 
 module.exports = app;
