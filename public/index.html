@@ -705,6 +705,10 @@
   </div>
 
   <script>
+    const API_BASE =
+      window.location.hostname === "localhost"
+        ? "http://localhost:3000"
+        : "https://finance-backend-b2a9.onrender.com";
     (function () {
       var TOKEN_KEY = "fd_token";
       var USER_KEY = "fd_user";
@@ -830,7 +834,7 @@
       }
 
       function fetchSummary() {
-        fetch("/api/dashboard/summary", { headers: authHeaders() })
+        fetch(`${API_BASE}/api/dashboard/summary`, { headers: authHeaders() })
           .then(function (res) {
             return parseJson(res).then(function (data) {
               return { res: res, data: data };
@@ -904,7 +908,7 @@
       }
 
       function fetchRecent() {
-        fetch("/api/dashboard/recent", { headers: authHeaders() })
+        fetch(`${API_BASE}/api/dashboard/recent`, { headers: authHeaders() })
           .then(function (res) {
             return parseJson(res).then(function (data) {
               return { res: res, data: data };
@@ -912,7 +916,7 @@
           })
           .then(function (o) {
             if (o.res.status === 403) {
-              return fetch("/api/records?limit=20&page=1", {
+              return fetch(`${API_BASE}/api/records?limit=20&page=1`, {
                 headers: authHeaders(),
               }).then(function (r2) {
                 return parseJson(r2).then(function (data2) {
@@ -962,7 +966,7 @@
         var prev = btnLogin.textContent;
         btnLogin.textContent = "Signing in…";
 
-        fetch("/api/auth/login", {
+        fetch(`${API_BASE}/api/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: email, password: password }),
