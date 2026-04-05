@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finance Dashboard</title>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --card: #1a1a1a;
+      --border: rgba(255, 255, 255, 0.1);
+      --muted: #888;
+      --text: #f5f5f5;
+      --green: #00b894;
+      --red: #e17055;
+      --blue: #74b9ff;
+      --err: #ff6b6b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* —— Shared view shell —— */
+    .view {
+      position: fixed;
+      inset: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      z-index: 1;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.45s ease, visibility 0.45s ease;
+    }
+
+    .view.active {
+      z-index: 10;
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    /* ═══════════ 1. LOGIN ═══════════ */
+    #login-view {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+      background: var(--bg);
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 400px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem 1.75rem 2.25rem;
+      box-shadow: 0 20px 56px rgba(0, 0, 0, 0.55);
+    }
+
+    .logo-mark {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 1rem;
+      border-radius: 12px;
+      background: rgba(0, 184, 148, 0.12);
+      border: 1px solid rgba(0, 184, 148, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--green);
+    }
+
+    .login-card h1 {
+      text-align: center;
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+    }
+
+    .login-card .subtitle {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.875rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .field {
+      margin-bottom: 1.1rem;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 0.45rem;
+    }
+
+    .text-input {
+      display: block;
+      width: 100%;
+      padding: 0.7rem 0.9rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.35);
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .text-input:focus {
+      border-color: rgba(0, 184, 148, 0.45);
+      box-shadow: 0 0 0 3px rgba(0, 184, 148, 0.12);
+    }
+
+    .pw-wrap {
+      position: relative;
+      display: block;
+    }
+
+    .pw-wrap .text-input {
+      padding-right: 4.5rem;
+    }
+
+    .toggle-pw {
+      position: absolute;
+      right: 5px;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 2.15rem;
+      padding: 0 0.7rem;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .toggle-pw:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--text);
+    }
+
+    .btn-signin {
+      width: 100%;
+      margin-top: 0.5rem;
+      padding: 0.85rem 1rem;
+      border: none;
+      border-radius: 10px;
+      background: var(--green);
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.2s, opacity 0.2s, transform 0.15s;
+    }
+
+    .btn-signin:hover:not(:disabled) {
+      filter: brightness(1.08);
+    }
+
+    .btn-signin:active:not(:disabled) {
+      transform: scale(0.99);
+    }
+
+    .btn-signin:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .login-error {
+      margin-top: 1rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 8px;
+      background: rgba(255, 107, 107, 0.12);
+      border: 1px solid rgba(255, 107, 107, 0.35);
+      color: var(--err);
+      font-size: 0.85rem;
+      text-align: center;
+    }
+
+    /* ═══════════ 2. LANDING (#landing-page) ═══════════ */
+    #landing-page {
+      background: #0f0f0f;
+    }
+
+    .landing-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    #fall-container {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+
+    /* 20 lines: thin vertical bars, green @ 20% opacity, random heights via JS */
+    .fall-line {
+      position: absolute;
+      top: 0;
+      left: var(--x);
+      width: var(--w, 1px);
+      height: var(--h, 80px);
+      background: rgba(0, 184, 148, 0.2);
+      animation: fall var(--dur, 5s) linear infinite;
+      animation-delay: var(--del, 0s);
+      will-change: transform;
+    }
+
+    @keyframes fall {
+      0% {
+        transform: translateY(-160px);
+        opacity: 0;
+      }
+      4% {
+        opacity: 1;
+      }
+      96% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(calc(100vh + 160px));
+        opacity: 0;
+      }
+    }
+
+    .landing-radial {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      background: radial-gradient(
+        ellipse 75% 65% at 50% 50%,
+        transparent 0%,
+        transparent 40%,
+        rgba(15, 15, 15, 0.75) 78%,
+        #0f0f0f 100%
+      );
+      pointer-events: none;
+    }
+
+    .landing-dotgrid {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      background-image: radial-gradient(
+        rgba(255, 255, 255, 0.07) 1px,
+        transparent 1px
+      );
+      background-size: 22px 22px;
+      pointer-events: none;
+    }
+
+    .landing-topbar {
+      position: relative;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      min-height: 52px;
+    }
+
+    .landing-brand {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        monospace;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .btn-go-dash {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      background: #00b894;
+      color: #000000;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.2s, transform 0.1s;
+    }
+
+    .btn-go-dash:hover {
+      filter: brightness(1.08);
+    }
+
+    .btn-go-dash:active {
+      transform: scale(0.98);
+    }
+
+    .landing-center-wrap {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem 1.25rem 2rem;
+      pointer-events: none;
+    }
+
+    .landing-center-inner {
+      text-align: center;
+      max-width: 90vw;
+    }
+
+    .landing-kicker {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: #00b894;
+      margin-bottom: 1rem;
+      opacity: 0;
+      animation: landing-fade-in 0.9s ease 0.1s forwards;
+    }
+
+    .landing-headline {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Courier New", monospace;
+      font-size: clamp(2rem, 8vw, 72px);
+      font-weight: 900;
+      letter-spacing: -2px;
+      line-height: 1.05;
+      color: #ffffff;
+      margin-bottom: 0.75rem;
+      opacity: 0;
+      animation: landing-fade-in 0.9s ease 0.35s forwards;
+    }
+
+    .landing-sub {
+      font-size: 16px;
+      color: #666666;
+      opacity: 0;
+      animation: landing-fade-in 0.9s ease 0.55s forwards;
+    }
+
+    @keyframes landing-fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(14px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ═══════════ 3. DASHBOARD ═══════════ */
+    #dashboard-view {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+    }
+
+    .navbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.25rem;
+      min-height: 56px;
+      background: #141414;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .navbar-title {
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .navbar-meta {
+      text-align: right;
+      font-size: 0.8rem;
+      line-height: 1.35;
+    }
+
+    .navbar-meta .role {
+      color: var(--green);
+      text-transform: uppercase;
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+    }
+
+    .btn-logout {
+      padding: 0.45rem 0.9rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-logout:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .dash-main {
+      flex: 1;
+      padding: 1.5rem 1.25rem 2rem;
+      max-width: 1100px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 0.9rem;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.15rem 1.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+    }
+
+    .stat-card.income::before {
+      background: var(--green);
+    }
+
+    .stat-card.expense::before {
+      background: var(--red);
+    }
+
+    .stat-card.balance::before {
+      background: var(--blue);
+    }
+
+    .stat-card .label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .stat-card .value {
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .stat-card.income .value {
+      color: var(--green);
+    }
+
+    .stat-card.expense .value {
+      color: var(--red);
+    }
+
+    .stat-card.balance .value {
+      color: var(--blue);
+    }
+
+    .stat-card .hint {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+    }
+
+    .table-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 0.8rem 1rem;
+      font-size: 0.88rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    tbody tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .type-pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .type-pill.income {
+      background: rgba(0, 184, 148, 0.15);
+      color: var(--green);
+    }
+
+    .type-pill.expense {
+      background: rgba(225, 112, 85, 0.15);
+      color: var(--red);
+    }
+
+    td.amt.income {
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    td.amt.expense {
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    .spinner-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      padding: 2rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .empty-msg {
+      padding: 2rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 520px) {
+      .navbar-meta {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 1. LOGIN -->
+  <div id="login-view" class="view active">
+    <div class="login-card">
+      <div class="logo-mark" aria-hidden="true">$</div>
+      <h1>Finance Dashboard</h1>
+      <p class="subtitle">Sign in to your account</p>
+
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" class="text-input" autocomplete="email" placeholder="you@company.com" />
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="password" class="text-input" autocomplete="current-password" placeholder="••••••••" />
+          <button type="button" class="toggle-pw" id="toggle-pw" aria-label="Show password">Show</button>
+        </div>
+      </div>
+
+      <button type="button" class="btn-signin" id="btn-login">Sign In</button>
+      <div id="login-error" class="login-error hidden" role="alert"></div>
+    </div>
+  </div>
+
+  <!-- 2. LANDING (hidden until login / session) -->
+  <div id="landing-page" class="view" aria-hidden="true">
+    <div class="landing-bg" aria-hidden="true">
+      <div id="fall-container"></div>
+      <div class="landing-radial"></div>
+      <div class="landing-dotgrid"></div>
+    </div>
+    <header class="landing-topbar">
+      <span class="landing-brand">Finance Dashboard</span>
+      <button type="button" class="btn-go-dash" id="btn-go-dashboard">Go to Dashboard →</button>
+    </header>
+    <div class="landing-center-wrap">
+      <div class="landing-center-inner">
+        <p class="landing-kicker">FINANCE DASHBOARD</p>
+        <h1 class="landing-headline">Future Landing Page</h1>
+        <p class="landing-sub">Coming soon</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. DASHBOARD -->
+  <div id="dashboard-view" class="view">
+    <header class="navbar">
+      <span class="navbar-title">Finance Dashboard</span>
+      <div class="navbar-right">
+        <div class="navbar-meta">
+          <div id="nav-email"></div>
+          <div class="role" id="nav-role"></div>
+        </div>
+        <button type="button" class="btn-logout" id="btn-logout">Logout</button>
+      </div>
+    </header>
+
+    <main class="dash-main">
+      <p class="section-label">Overview</p>
+      <div id="cards-area" class="cards">
+        <div class="spinner-wrap">
+          <div class="spinner"></div>
+          <span>Loading…</span>
+        </div>
+      </div>
+
+      <p class="section-label">Recent activity</p>
+      <div id="table-area">
+        <div class="spinner-wrap">
+          <div class="spinner"></div>
+          <span>Loading…</span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      var TOKEN_KEY = "fd_token";
+      var USER_KEY = "fd_user";
+
+      var loginView = document.getElementById("login-view");
+      var landingPage = document.getElementById("landing-page");
+      var dashView = document.getElementById("dashboard-view");
+      var fallContainer = document.getElementById("fall-container");
+
+      var emailInput = document.getElementById("email");
+      var passwordInput = document.getElementById("password");
+      var togglePw = document.getElementById("toggle-pw");
+      var btnLogin = document.getElementById("btn-login");
+      var loginError = document.getElementById("login-error");
+      var btnGoDashboard = document.getElementById("btn-go-dashboard");
+      var btnLogout = document.getElementById("btn-logout");
+      var cardsArea = document.getElementById("cards-area");
+      var tableArea = document.getElementById("table-area");
+      var navEmail = document.getElementById("nav-email");
+      var navRole = document.getElementById("nav-role");
+
+      var token = null;
+      var user = null;
+      var fallBuilt = false;
+
+      function buildFallingPattern() {
+        if (fallBuilt || !fallContainer) return;
+        fallBuilt = true;
+        for (var i = 0; i < 20; i++) {
+          var el = document.createElement("div");
+          el.className = "fall-line";
+          el.style.setProperty("--x", Math.random() * 100 + "%");
+          el.style.setProperty("--w", (Math.random() > 0.5 ? 1 : 2) + "px");
+          el.style.setProperty("--h", 50 + Math.floor(Math.random() * 101) + "px");
+          el.style.setProperty("--dur", 3 + Math.random() * 5 + "s");
+          el.style.setProperty("--del", Math.random() * 8 + "s");
+          fallContainer.appendChild(el);
+        }
+      }
+
+      function showView(name) {
+        loginView.classList.remove("active");
+        if (landingPage) landingPage.classList.remove("active");
+        dashView.classList.remove("active");
+        if (landingPage) landingPage.setAttribute("aria-hidden", "true");
+        loginView.setAttribute("aria-hidden", name !== "login");
+        if (name === "login") {
+          loginView.classList.add("active");
+        } else if (name === "landing") {
+          if (landingPage) {
+            landingPage.classList.add("active");
+            landingPage.setAttribute("aria-hidden", "false");
+          }
+          buildFallingPattern();
+        } else if (name === "dashboard") {
+          dashView.classList.add("active");
+          dashView.setAttribute("aria-hidden", "false");
+        }
+        if (name !== "dashboard") dashView.setAttribute("aria-hidden", "true");
+      }
+
+      function authHeaders() {
+        return { Authorization: "Bearer " + token };
+      }
+
+      function parseJson(res) {
+        return res.text().then(function (t) {
+          try {
+            return JSON.parse(t);
+          } catch (e) {
+            return { message: t || "Bad response" };
+          }
+        });
+      }
+
+      function showLoginError(msg) {
+        loginError.textContent = msg;
+        loginError.classList.remove("hidden");
+      }
+
+      function hideLoginError() {
+        loginError.classList.add("hidden");
+      }
+
+      function formatMoney(n) {
+        return new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+          maximumFractionDigits: 2,
+        }).format(n || 0);
+      }
+
+      function formatDate(d) {
+        if (!d) return "—";
+        var x = new Date(d);
+        if (isNaN(x.getTime())) return String(d);
+        return x.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function loadDashboard() {
+        navEmail.textContent = user.email || "";
+        navRole.textContent = user.role || "";
+
+        cardsArea.innerHTML =
+          '<div class="spinner-wrap"><div class="spinner"></div><span>Loading…</span></div>';
+        tableArea.innerHTML =
+          '<div class="spinner-wrap"><div class="spinner"></div><span>Loading…</span></div>';
+
+        fetchSummary();
+        fetchRecent();
+      }
+
+      function fetchSummary() {
+        fetch("/api/dashboard/summary", { headers: authHeaders() })
+          .then(function (res) {
+            return parseJson(res).then(function (data) {
+              return { res: res, data: data };
+            });
+          })
+          .then(function (o) {
+            if (o.res.status === 403) {
+              cardsArea.innerHTML =
+                '<div class="stat-card income"><div class="label">Total income</div><div class="value">—</div><div class="hint">Analyst or Admin only</div></div>' +
+                '<div class="stat-card expense"><div class="label">Total expenses</div><div class="value">—</div><div class="hint">Analyst or Admin only</div></div>' +
+                '<div class="stat-card balance"><div class="label">Net balance</div><div class="value">—</div><div class="hint">Analyst or Admin only</div></div>';
+              return;
+            }
+            if (!o.res.ok) {
+              cardsArea.innerHTML =
+                '<div class="empty-msg">' +
+                escapeHtml(o.data.message || "Could not load summary") +
+                "</div>";
+              return;
+            }
+            var d = o.data;
+            cardsArea.innerHTML =
+              '<div class="stat-card income"><div class="label">Total income</div><div class="value">' +
+              formatMoney(d.totalIncome) +
+              "</div></div>" +
+              '<div class="stat-card expense"><div class="label">Total expenses</div><div class="value">' +
+              formatMoney(d.totalExpenses) +
+              "</div></div>" +
+              '<div class="stat-card balance"><div class="label">Net balance</div><div class="value">' +
+              formatMoney(d.netBalance) +
+              "</div></div>";
+          })
+          .catch(function () {
+            cardsArea.innerHTML =
+              '<div class="empty-msg">Network error loading summary.</div>';
+          });
+      }
+
+      function renderRows(rows) {
+        if (!rows || !rows.length) {
+          return '<div class="empty-msg">No rows yet.</div>';
+        }
+        var body = rows
+          .map(function (r) {
+            var amt = Number(r.amount);
+            var cls = r.type === "income" ? "income" : "expense";
+            var sign = r.type === "income" ? "+" : "−";
+            return (
+              "<tr><td>" +
+              escapeHtml(formatDate(r.date)) +
+              '</td><td>' +
+              escapeHtml(r.category || "") +
+              '</td><td><span class="type-pill ' +
+              cls +
+              '">' +
+              escapeHtml(r.type || "") +
+              '</span></td><td class="amt ' +
+              cls +
+              '">' +
+              sign +
+              formatMoney(Math.abs(amt)) +
+              "</td></tr>"
+            );
+          })
+          .join("");
+        return (
+          '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Category</th><th>Type</th><th>Amount</th></tr></thead><tbody>' +
+          body +
+          "</tbody></table></div>"
+        );
+      }
+
+      function fetchRecent() {
+        fetch("/api/dashboard/recent", { headers: authHeaders() })
+          .then(function (res) {
+            return parseJson(res).then(function (data) {
+              return { res: res, data: data };
+            });
+          })
+          .then(function (o) {
+            if (o.res.status === 403) {
+              return fetch("/api/records?limit=20&page=1", {
+                headers: authHeaders(),
+              }).then(function (r2) {
+                return parseJson(r2).then(function (data2) {
+                  return { res: r2, data: data2, fallback: true };
+                });
+              });
+            }
+            return o;
+          })
+          .then(function (o) {
+            if (o.fallback) {
+              if (o.res.ok && o.data && o.data.records) {
+                tableArea.innerHTML = renderRows(o.data.records);
+              } else {
+                tableArea.innerHTML =
+                  '<div class="empty-msg">Could not load your records.</div>';
+              }
+              return;
+            }
+            if (!o.res.ok) {
+              tableArea.innerHTML =
+                '<div class="empty-msg">' +
+                escapeHtml(
+                  (o.data && o.data.message) || "Could not load activity"
+                ) +
+                "</div>";
+              return;
+            }
+            var rows = Array.isArray(o.data) ? o.data : [];
+            tableArea.innerHTML = renderRows(rows);
+          })
+          .catch(function () {
+            tableArea.innerHTML =
+              '<div class="empty-msg">Network error loading table.</div>';
+          });
+      }
+
+      function doLogin() {
+        hideLoginError();
+        var email = emailInput.value.trim();
+        var password = passwordInput.value;
+        if (!email || !password) {
+          showLoginError("Enter email and password.");
+          return;
+        }
+        btnLogin.disabled = true;
+        var prev = btnLogin.textContent;
+        btnLogin.textContent = "Signing in…";
+
+        fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email, password: password }),
+        })
+          .then(function (res) {
+            return parseJson(res).then(function (data) {
+              return { res: res, data: data };
+            });
+          })
+          .then(function (o) {
+            if (!o.res.ok) {
+              showLoginError(o.data.message || "Login failed.");
+              return;
+            }
+            token = o.data.token;
+            user = o.data.user;
+            localStorage.setItem(TOKEN_KEY, token);
+            localStorage.setItem(USER_KEY, JSON.stringify(user));
+            showView("landing");
+          })
+          .catch(function () {
+            showLoginError("Cannot reach the server.");
+          })
+          .then(function () {
+            btnLogin.disabled = false;
+            btnLogin.textContent = prev;
+          });
+      }
+
+      function goToDashboard() {
+        showView("dashboard");
+        loadDashboard();
+      }
+
+      function doLogout() {
+        token = null;
+        user = null;
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+        emailInput.value = "";
+        passwordInput.value = "";
+        hideLoginError();
+        showView("login");
+      }
+
+      togglePw.addEventListener("click", function () {
+        if (passwordInput.type === "password") {
+          passwordInput.type = "text";
+          togglePw.textContent = "Hide";
+        } else {
+          passwordInput.type = "password";
+          togglePw.textContent = "Show";
+        }
+      });
+
+      btnLogin.addEventListener("click", doLogin);
+      passwordInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") doLogin();
+      });
+      emailInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") passwordInput.focus();
+      });
+
+      btnGoDashboard.addEventListener("click", goToDashboard);
+      btnLogout.addEventListener("click", doLogout);
+
+      var savedT = localStorage.getItem(TOKEN_KEY);
+      var savedU = localStorage.getItem(USER_KEY);
+      if (savedT && savedU) {
+        try {
+          token = savedT;
+          user = JSON.parse(savedU);
+          showView("landing");
+        } catch (e) {
+          doLogout();
+        }
+      }
+    })();
+  </script>
+</body>
+</html>
