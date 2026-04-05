@@ -57,9 +57,7 @@ const putValidators = [
   body("notes").optional().isString(),
 ];
 
-const idParam = param("id")
-  .isInt({ min: 1 })
-  .withMessage("Invalid record id");
+const idParam = param("id").isMongoId().withMessage("Invalid record id");
 
 function handleValidation(req, res, next) {
   const errors = validationResult(req);

@@ -7,9 +7,7 @@ const router = express.Router();
 
 const adminOnly = [authenticateToken, authorizeRoles("admin")];
 
-const idParam = param("id")
-  .isInt({ min: 1 })
-  .withMessage("Invalid user id");
+const idParam = param("id").isMongoId().withMessage("Invalid user id");
 
 const putValidators = [
   body("name")

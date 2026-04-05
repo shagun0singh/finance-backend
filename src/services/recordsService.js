@@ -1,16 +1,23 @@
-const db = require("../db/database");
+const mongoose = require("mongoose");
+const Record = require("../models/Record");
 
-function rowToRecord(row) {
-  if (!row) return null;
+function docToRecord(doc) {
+  if (!doc) return null;
+  const d = doc.date instanceof Date ? doc.date : new Date(doc.date);
+  const dateStr = Number.isNaN(d.getTime())
+    ? String(doc.date)
+    : d.toISOString().slice(0, 10);
   return {
-    id: row.id,
-    amount: row.amount,
-    type: row.type,
-    category: row.category,
-    date: row.date,
-    notes: row.notes,
-    created_by: row.created_by,
-    created_at: row.created_at,
+    id: doc._id.toString(),
+    amount: doc.amount,
+    type: doc.type,
+    category: doc.category,
+    date: dateStr,
+    notes: doc.notes,
+    created_by: doc.createdBy ? doc.createdBy.toString() : null,
+    created_at: doc.createdAt
+      ? new Date(doc.createdAt).toISOString()
+      : undefined,
   };
 }
 
@@ -20,7 +27,13 @@ function notFound() {
   throw err;
 }
 
-function createRecord(data, createdBy) {
+function invalidId() {
+  const err = new Error("Record not found");
+  err.status = 404;
+  throw err;
+}
+
+async function createRecord(data, createdBy) {
   const { amount, type, category, date, notes } = data;
   if (type !== "income" && type !== "expense") {
     const err = new Error("Type must be income or expense");
@@ -28,24 +41,24 @@ function createRecord(data, createdBy) {
     throw err;
   }
 
-  const result = db
-    .prepare(
-      `INSERT INTO financial_records (amount, type, category, date, notes, created_by)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      amount,
-      type,
-      category,
-      date,
-      notes === undefined || notes === null ? null : notes,
-      createdBy
-    );
+  const dateVal =
+    typeof date === "string" && !date.includes("T")
+      ? new Date(`${date}T12:00:00.000Z`)
+      : new Date(date);
 
-  return getRecordById(result.lastInsertRowid);
+  const record = new Record({
+    amount,
+    type,
+    category,
+    date: dateVal,
+    notes: notes === undefined || notes === null ? undefined : notes,
+    createdBy,
+  });
+  await record.save();
+  return docToRecord(record.toObject());
 }
 
-function getAllRecords(filters = {}) {
+async function getAllRecords(filters = {}) {
   const {
     type,
     category,
@@ -58,8 +71,7 @@ function getAllRecords(filters = {}) {
   const page = Math.max(1, parseInt(pageRaw, 10) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(limitRaw, 10) || 10));
 
-  const conditions = [];
-  const params = [];
+  const query = {};
 
   if (type !== undefined && type !== null && type !== "") {
     if (type !== "income" && type !== "expense") {
@@ -67,69 +79,53 @@ function getAllRecords(filters = {}) {
       err.status = 400;
       throw err;
     }
-    conditions.push("type = ?");
-    params.push(type);
+    query.type = type;
   }
 
   if (category !== undefined && category !== null && category !== "") {
-    conditions.push("category = ?");
-    params.push(String(category));
+    query.category = String(category);
   }
 
   if (startDate !== undefined && startDate !== null && startDate !== "") {
-    conditions.push("date >= ?");
-    params.push(String(startDate));
+    query.date = query.date || {};
+    query.date.$gte = new Date(`${String(startDate)}T00:00:00.000Z`);
   }
 
   if (endDate !== undefined && endDate !== null && endDate !== "") {
-    conditions.push("date <= ?");
-    params.push(String(endDate));
+    query.date = query.date || {};
+    query.date.$lte = new Date(`${String(endDate)}T23:59:59.999Z`);
   }
 
-  const where =
-    conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-
-  const countRow = db
-    .prepare(`SELECT COUNT(*) AS total FROM financial_records ${where}`)
-    .get(...params);
-  const total = countRow.total;
+  const total = await Record.countDocuments(query);
   const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
-  const offset = (page - 1) * limit;
+  const skip = (page - 1) * limit;
 
-  const rows = db
-    .prepare(
-      `SELECT id, amount, type, category, date, notes, created_by, created_at
-       FROM financial_records ${where}
-       ORDER BY date DESC, id DESC
-       LIMIT ? OFFSET ?`
-    )
-    .all(...params, limit, offset);
+  const docs = await Record.find(query)
+    .sort({ date: -1, _id: -1 })
+    .skip(skip)
+    .limit(limit)
+    .lean();
 
   return {
-    records: rows.map(rowToRecord),
+    records: docs.map(docToRecord),
     total,
     page,
     totalPages,
   };
 }
 
-function getRecordById(id) {
-  const row = db
-    .prepare(
-      `SELECT id, amount, type, category, date, notes, created_by, created_at
-       FROM financial_records WHERE id = ?`
-    )
-    .get(id);
-  if (!row) notFound();
-  return rowToRecord(row);
+async function getRecordById(id) {
+  if (!mongoose.Types.ObjectId.isValid(id)) invalidId();
+  const doc = await Record.findById(id).lean();
+  if (!doc) notFound();
+  return docToRecord(doc);
 }
 
-function updateRecord(id, data) {
-  getRecordById(id);
+async function updateRecord(id, data) {
+  await getRecordById(id);
 
   const allowed = ["amount", "type", "category", "date", "notes"];
-  const updates = [];
-  const values = [];
+  const patch = {};
 
   for (const key of allowed) {
     if (!Object.prototype.hasOwnProperty.call(data, key)) continue;
@@ -142,25 +138,31 @@ function updateRecord(id, data) {
         throw err;
       }
     }
-    updates.push(`${key} = ?`);
-    values.push(val);
+    if (key === "date") {
+      patch[key] =
+        typeof val === "string" && !val.includes("T")
+          ? new Date(`${val}T12:00:00.000Z`)
+          : new Date(val);
+    } else {
+      patch[key] = val;
+    }
   }
 
-  if (updates.length === 0) {
+  if (Object.keys(patch).length === 0) {
     return getRecordById(id);
   }
 
-  values.push(id);
-  db.prepare(
-    `UPDATE financial_records SET ${updates.join(", ")} WHERE id = ?`
-  ).run(...values);
-
-  return getRecordById(id);
+  const updated = await Record.findByIdAndUpdate(id, patch, {
+    new: true,
+    runValidators: true,
+  }).lean();
+  if (!updated) notFound();
+  return docToRecord(updated);
 }
 
-function deleteRecord(id) {
-  getRecordById(id);
-  db.prepare("DELETE FROM financial_records WHERE id = ?").run(id);
+async function deleteRecord(id) {
+  await getRecordById(id);
+  await Record.findByIdAndDelete(id);
   return { message: "Financial record deleted successfully" };
 }
 

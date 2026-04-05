@@ -1,67 +1,99 @@
-const db = require("../db/database");
+const Record = require("../models/Record");
 
-function getSummary() {
-  const incomeRow = db
-    .prepare(
-      `SELECT COALESCE(SUM(amount), 0) AS total
-       FROM financial_records WHERE type = 'income'`
-    )
-    .get();
+async function getSummary() {
+  const [incomeAgg, expenseAgg] = await Promise.all([
+    Record.aggregate([
+      { $match: { type: "income" } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]),
+    Record.aggregate([
+      { $match: { type: "expense" } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]),
+  ]);
 
-  const expenseRow = db
-    .prepare(
-      `SELECT COALESCE(SUM(amount), 0) AS total
-       FROM financial_records WHERE type = 'expense'`
-    )
-    .get();
-
-  const totalIncome = incomeRow.total;
-  const totalExpenses = expenseRow.total;
+  const totalIncome = incomeAgg[0]?.total ?? 0;
+  const totalExpenses = expenseAgg[0]?.total ?? 0;
   const netBalance = totalIncome - totalExpenses;
 
   return {
-    totalIncome: parseFloat(totalIncome.toFixed(2)),
-    totalExpenses: parseFloat(totalExpenses.toFixed(2)),
-    netBalance: parseFloat(netBalance.toFixed(2)),
+    totalIncome: parseFloat(Number(totalIncome).toFixed(2)),
+    totalExpenses: parseFloat(Number(totalExpenses).toFixed(2)),
+    netBalance: parseFloat(Number(netBalance).toFixed(2)),
   };
 }
 
-function getCategoryTotals() {
-  const rows = db
-    .prepare(
-      `SELECT category, ROUND(SUM(amount), 2) AS total
-       FROM financial_records
-       GROUP BY category
-       ORDER BY total DESC`
-    )
-    .all();
+async function getCategoryTotals() {
+  const rows = await Record.aggregate([
+    {
+      $group: {
+        _id: "$category",
+        total: { $sum: "$amount" },
+      },
+    },
+    { $sort: { total: -1 } },
+    {
+      $project: {
+        _id: 0,
+        category: "$_id",
+        total: { $round: ["$total", 2] },
+      },
+    },
+  ]);
 
   return rows.map((r) => ({ category: r.category, total: r.total }));
 }
 
-function getRecentActivity() {
-  return db
-    .prepare(
-      `SELECT id, amount, type, category, date, notes, created_by, created_at
-       FROM financial_records
-       ORDER BY created_at DESC
-       LIMIT 5`
-    )
-    .all();
+async function getRecentActivity() {
+  const docs = await Record.find()
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .lean();
+
+  return docs.map((row) => {
+    const d =
+      row.date instanceof Date ? row.date : new Date(row.date);
+    const dateStr = Number.isNaN(d.getTime())
+      ? String(row.date)
+      : d.toISOString().slice(0, 10);
+    return {
+      id: row._id.toString(),
+      amount: row.amount,
+      type: row.type,
+      category: row.category,
+      date: dateStr,
+      notes: row.notes,
+      created_by: row.createdBy ? row.createdBy.toString() : null,
+      created_at: row.createdAt
+        ? new Date(row.createdAt).toISOString()
+        : undefined,
+    };
+  });
 }
 
-function getMonthlyTrends() {
-  const rows = db
-    .prepare(
-      `SELECT
-         strftime('%Y-%m', date) AS month,
-         ROUND(SUM(CASE WHEN type = 'income'  THEN amount ELSE 0 END), 2) AS income,
-         ROUND(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 2) AS expenses
-       FROM financial_records
-       GROUP BY month
-       ORDER BY month ASC`
-    )
-    .all();
+async function getMonthlyTrends() {
+  const rows = await Record.aggregate([
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m", date: "$date" } },
+        income: {
+          $sum: { $cond: [{ $eq: ["$type", "income"] }, "$amount", 0] },
+        },
+        expenses: {
+          $sum: { $cond: [{ $eq: ["$type", "expense"] }, "$amount", 0] },
+        },
+      },
+    },
+    { $sort: { _id: 1 } },
+    {
+      $project: {
+        _id: 0,
+        month: "$_id",
+        income: { $round: ["$income", 2] },
+        expenses: { $round: ["$expenses", 2] },
+      },
+    },
+  ]);
 
   return rows.map((r) => ({
     month: r.month,
@@ -70,4 +102,9 @@ function getMonthlyTrends() {
   }));
 }
 
-module.exports = { getSummary, getCategoryTotals, getRecentActivity, getMonthlyTrends };
+module.exports = {
+  getSummary,
+  getCategoryTotals,
+  getRecentActivity,
+  getMonthlyTrends,
+};

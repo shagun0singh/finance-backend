@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const connectDB = require("./db/database");
 const authRoutes = require("./routes/authRoutes");
 const recordsRoutes = require("./routes/recordsRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
@@ -37,21 +38,26 @@ app.use((err, req, res, _next) => {
   });
 });
 
-const server = app.listen(port, () => {
-  console.log(`Server listening on http://localhost:${port}`);
-});
+async function start() {
+  await connectDB();
+  const server = app.listen(port, () => {
+    console.log(`Server listening on http://localhost:${port}`);
+  });
 
-server.on("error", (err) => {
-  if (err.code === "EADDRINUSE") {
-    console.error(
-      `Port ${port} is already in use (EADDRINUSE). Another app or an old Node process is using it.\n` +
-        `Fix: stop that process, or set PORT in .env to a free port (e.g. 3001).\n` +
-        `Find PID: lsof -i :${port}`
-    );
-  } else {
-    console.error(err);
-  }
-  process.exit(1);
-});
+  server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(
+        `Port ${port} is already in use (EADDRINUSE). Another app or an old Node process is using it.\n` +
+          `Fix: stop that process, or set PORT in .env to a free port (e.g. 3001).\n` +
+          `Find PID: lsof -i :${port}`
+      );
+    } else {
+      console.error(err);
+    }
+    process.exit(1);
+  });
+}
+
+start();
 
 module.exports = app;

@@ -1,17 +1,17 @@
-const db = require("../db/database");
+const mongoose = require("mongoose");
+const User = require("../models/User");
 
-const PUBLIC_FIELDS =
-  "id, name, email, role, status, created_at";
-
-function rowToUser(row) {
-  if (!row) return null;
+function docToUser(doc) {
+  if (!doc) return null;
   return {
-    id: row.id,
-    name: row.name,
-    email: row.email,
-    role: row.role,
-    status: row.status,
-    created_at: row.created_at,
+    id: doc._id.toString(),
+    name: doc.name,
+    email: doc.email,
+    role: doc.role,
+    status: doc.status,
+    created_at: doc.createdAt
+      ? new Date(doc.createdAt).toISOString()
+      : undefined,
   };
 }
 
@@ -21,23 +21,23 @@ function notFound() {
   throw err;
 }
 
-function getAllUsers() {
-  return db
-    .prepare(`SELECT ${PUBLIC_FIELDS} FROM users ORDER BY id ASC`)
-    .all()
-    .map(rowToUser);
+async function getAllUsers() {
+  const docs = await User.find()
+    .select("-password_hash")
+    .sort({ _id: 1 })
+    .lean();
+  return docs.map(docToUser);
 }
 
-function getUserById(id) {
-  const row = db
-    .prepare(`SELECT ${PUBLIC_FIELDS} FROM users WHERE id = ?`)
-    .get(id);
-  if (!row) notFound();
-  return rowToUser(row);
+async function getUserById(id) {
+  if (!mongoose.Types.ObjectId.isValid(id)) notFound();
+  const doc = await User.findById(id).select("-password_hash").lean();
+  if (!doc) notFound();
+  return docToUser(doc);
 }
 
-function updateUser(id, data) {
-  getUserById(id);
+async function updateUser(id, data) {
+  await getUserById(id);
 
   const { name, role, status } = data;
 
@@ -57,44 +57,35 @@ function updateUser(id, data) {
     }
   }
 
-  const updates = [];
-  const values = [];
+  const patch = {};
+  if (name !== undefined) patch.name = String(name).trim();
+  if (role !== undefined) patch.role = role;
+  if (status !== undefined) patch.status = status;
 
-  if (name !== undefined) {
-    updates.push("name = ?");
-    values.push(String(name).trim());
-  }
-  if (role !== undefined) {
-    updates.push("role = ?");
-    values.push(role);
-  }
-  if (status !== undefined) {
-    updates.push("status = ?");
-    values.push(status);
-  }
-
-  if (updates.length === 0) {
+  if (Object.keys(patch).length === 0) {
     return getUserById(id);
   }
 
-  values.push(id);
-  db.prepare(
-    `UPDATE users SET ${updates.join(", ")} WHERE id = ?`
-  ).run(...values);
-
-  return getUserById(id);
+  const updated = await User.findByIdAndUpdate(id, patch, {
+    new: true,
+    runValidators: true,
+  })
+    .select("-password_hash")
+    .lean();
+  if (!updated) notFound();
+  return docToUser(updated);
 }
 
-function deleteUser(id, requesterId) {
-  getUserById(id);
+async function deleteUser(id, requesterId) {
+  await getUserById(id);
 
-  if (Number(id) === Number(requesterId)) {
+  if (String(id) === String(requesterId)) {
     const err = new Error("You cannot delete your own account");
     err.status = 403;
     throw err;
   }
 
-  db.prepare("DELETE FROM users WHERE id = ?").run(id);
+  await User.findByIdAndDelete(id);
   return { message: "User deleted successfully" };
 }
 

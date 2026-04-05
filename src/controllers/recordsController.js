@@ -1,9 +1,9 @@
 const recordsService = require("../services/recordsService");
 
-function createRecord(req, res, next) {
+async function createRecord(req, res, next) {
   try {
     const { amount, type, category, date, notes } = req.body;
-    const record = recordsService.createRecord(
+    const record = await recordsService.createRecord(
       { amount, type, category, date, notes },
       req.user.id
     );
@@ -13,10 +13,10 @@ function createRecord(req, res, next) {
   }
 }
 
-function getAllRecords(req, res, next) {
+async function getAllRecords(req, res, next) {
   try {
     const { type, category, startDate, endDate, page, limit } = req.query;
-    const result = recordsService.getAllRecords({
+    const result = await recordsService.getAllRecords({
       type,
       category,
       startDate,
@@ -30,30 +30,30 @@ function getAllRecords(req, res, next) {
   }
 }
 
-function getRecordById(req, res, next) {
+async function getRecordById(req, res, next) {
   try {
-    const id = Number(req.params.id);
-    const record = recordsService.getRecordById(id);
+    const { id } = req.params;
+    const record = await recordsService.getRecordById(id);
     res.status(200).json(record);
   } catch (err) {
     next(err);
   }
 }
 
-function updateRecord(req, res, next) {
+async function updateRecord(req, res, next) {
   try {
-    const id = Number(req.params.id);
-    const record = recordsService.updateRecord(id, req.body);
+    const { id } = req.params;
+    const record = await recordsService.updateRecord(id, req.body);
     res.status(200).json(record);
   } catch (err) {
     next(err);
   }
 }
 
-function deleteRecord(req, res, next) {
+async function deleteRecord(req, res, next) {
   try {
-    const id = Number(req.params.id);
-    const result = recordsService.deleteRecord(id);
+    const { id } = req.params;
+    const result = await recordsService.deleteRecord(id);
     res.status(200).json(result);
   } catch (err) {
     next(err);

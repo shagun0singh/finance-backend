@@ -1,39 +1,44 @@
 const dashboardService = require("../services/dashboardService");
 
-function getSummary(req, res, next) {
+async function getSummary(req, res, next) {
   try {
-    const data = dashboardService.getSummary();
+    const data = await dashboardService.getSummary();
     res.status(200).json(data);
   } catch (err) {
     next(err);
   }
 }
 
-function getCategoryTotals(req, res, next) {
+async function getCategoryTotals(req, res, next) {
   try {
-    const data = dashboardService.getCategoryTotals();
+    const data = await dashboardService.getCategoryTotals();
     res.status(200).json(data);
   } catch (err) {
     next(err);
   }
 }
 
-function getRecentActivity(req, res, next) {
+async function getRecentActivity(req, res, next) {
   try {
-    const data = dashboardService.getRecentActivity();
+    const data = await dashboardService.getRecentActivity();
     res.status(200).json(data);
   } catch (err) {
     next(err);
   }
 }
 
-function getMonthlyTrends(req, res, next) {
+async function getMonthlyTrends(req, res, next) {
   try {
-    const data = dashboardService.getMonthlyTrends();
+    const data = await dashboardService.getMonthlyTrends();
     res.status(200).json(data);
   } catch (err) {
     next(err);
   }
 }
 
-module.exports = { getSummary, getCategoryTotals, getRecentActivity, getMonthlyTrends };
+module.exports = {
+  getSummary,
+  getCategoryTotals,
+  getRecentActivity,
+  getMonthlyTrends,
+};
